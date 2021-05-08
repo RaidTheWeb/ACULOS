@@ -78,6 +78,13 @@ void printf(char* str)
                 x = 0;
                 y++;
                 break;
+            case '\a':
+                for(y = 0; y < 25; y++)
+                    for(x = 0; x < 80; x++)
+                        VideoMemory[80*y+x] = (VideoMemory[80*y+x] & 0xFF00) | ' ';
+                x = 0;
+                y = 0;
+                break;
             case '\b':
                 if(KernelGlobal.TERMINALMODE) {
                     if(x > 2) {
@@ -113,15 +120,7 @@ void printf(char* str)
 }
 
 void clear() {
-    static uint16_t* VideoMemory = (uint16_t*)0xb8000;
-
-    uint8_t x=0, y=0;
-
-    for(y = 0; y < 25; y++)
-        for(x = 0; x < 80; x++)
-            VideoMemory[80*y+x] = (VideoMemory[80*y+x] & 0xFF00) | ' ';
-    x = 0;
-    y = 0;
+    printf("\a");
 }
 
 void printfHex(uint8_t key)
@@ -143,6 +142,13 @@ void printfHex32(uint32_t key)
     printfHex((key >> 16) & 0xFF);
     printfHex((key >> 8) & 0xFF);
     printfHex( key & 0xFF);
+}
+
+static inline void cpuid(uint32_t reg, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
+{
+    __asm__ volatile("cpuid"
+        : "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx)
+        : "0" (reg));
 }
 
 void * memset( void * s, int c, size_t n )
@@ -313,6 +319,26 @@ size_t strlen( const char * s )
     return rc;
 }
 
+char * strcat( char * s1, const char * s2 )
+{
+    char * rc = s1;
+
+    if ( *s1 )
+    {
+        while ( *++s1 )
+        {
+            /* EMPTY */
+        }
+    }
+
+    while ( ( *s1++ = *s2++ ) )
+    {
+        /* EMPTY */
+    }
+
+    return rc;
+}
+
 char * strtok( char * s1, const char * s2 )
 {
     static char * tmp = NULL;
@@ -344,10 +370,10 @@ char * splitString(char commandBuffer[]) {
 }
 
 void executeCommand(char* args[], char* rawArgs) {
-    if(strcmp(args[0], "test")) {
-        printf("If your seeing this message than the command handler is most likely working\n");
-    } else if(strcmp(args[0], "reboot")) {
+    if(strcmp(args[0], "reboot")) {
         reboot();
+    } else if(strcmp(args[0], "clear") || strcmp(args[0], "cls")) {
+        clear();
     } else if(strcmp(args[0], "echo")) {
         int init_size = strlen(rawArgs);
         char delim[] = " ";
@@ -362,6 +388,46 @@ void executeCommand(char* args[], char* rawArgs) {
             ptr = strtok(NULL, delim);
         }
         printf("\n");
+    } else if(strcmp(args[0], "")) {
+        // ignore empty
+    /*} else if(strcmp(args[0], "testdrive")) {
+        printf("\nS-ATA primary master: ");
+        AdvancedTechnologyAttachment ata0m(true, 0x1F0);
+        ata0m.Identify();
+        
+        printf("\nS-ATA primary slave: ");
+        AdvancedTechnologyAttachment ata0s(false, 0x1F0);
+        ata0s.Identify();
+        ata0s.Write28(0, (uint8_t*)"test", 25);
+        ata0s.Flush();
+        ata0s.Read28(0, 25);
+        
+        printf("\nS-ATA secondary master: ");
+        AdvancedTechnologyAttachment ata1m(true, 0x170);
+        ata1m.Identify();
+        
+        printf("\nS-ATA secondary slave: ");
+        AdvancedTechnologyAttachment ata1s(false, 0x170);
+        ata1s.Identify();
+        // third: 0x1E8
+        // fourth: 0x168*/
+    } else if (strcmp(args[0], "hostinfo")) {
+        
+        uint32_t largestStandardFunc;
+        char vendor[13];
+        cpuid(0, &largestStandardFunc, (uint32_t *)(vendor + 0), (uint32_t *)(vendor + 8), (uint32_t *)(vendor + 4));
+        vendor[12] = '\0';
+        printf("name: aculos\n");
+        printf("version: 0.5.2");
+        printf("\n");
+        printf("cpu vendor: ");
+        printf(vendor);
+        printf("\n");
+        printf("\n");
+    } else {
+        printf("shell: ");
+        printf(args[0]);
+        printf(": command not found\n");
     }
 }
 

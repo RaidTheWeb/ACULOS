@@ -29,3 +29,6 @@
 *.app
 *.bin
 *.iso
+
+# Misc Files
+*.htext
